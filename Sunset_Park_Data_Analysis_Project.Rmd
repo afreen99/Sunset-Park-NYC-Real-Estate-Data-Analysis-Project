@@ -1,8 +1,3 @@
----
-title: An R Markdown document converted from "Downloads/Sunset_Park_Data_Analysis_Project.ipynb"
-output: html_document
----
-
 ```{r}
 # Install lightweight packages (only once)
 install.packages(c("skimr", "inspectdf"))
