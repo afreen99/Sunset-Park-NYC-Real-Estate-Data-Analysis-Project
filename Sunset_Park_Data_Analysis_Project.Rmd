@@ -1,0 +1,283 @@
+---
+title: An R Markdown document converted from "Downloads/Sunset_Park_Data_Analysis_Project.ipynb"
+output: html_document
+---
+
+```{r}
+# Install lightweight packages (only once)
+install.packages(c("skimr", "inspectdf"))
+
+# Load libraries
+library(skimr)
+library(inspectdf)
+library(tidyverse)
+```
+
+Prepare Dataset and Quick Overview
+
+```{r}
+# Download to a temporary file
+url <- "https://www.dsm.business/MET/NYC_REAL_ESTATE_DATA.RData"
+dest <- tempfile(fileext = ".RData")
+download.file(url, dest)
+
+# Load the data
+load(dest)
+
+BOROUGH <- BOROUGH
+BUILDING_CLASS <- BUILDING_CLASS
+NEIGHBORHOOD <- NEIGHBORHOOD
+NYC_TRANSACTION_DATA <- NYC_TRANSACTION_DATA
+all_nyc <- NYC_TRANSACTION_DATA %>% left_join(BUILDING_CLASS, by =c("BUILDING_CLASS_FINAL_ROLL" =
+"X.BUILDING_CODE_ID")) %>% left_join(NEIGHBORHOOD, by=c("NEIGHBORHOOD_ID" = "NEIGHBORHOOD_ID"))
+dim(all_nyc)
+head(all_nyc)
+```
+
+```{r}
+mydata <- filter(all_nyc, NEIGHBORHOOD_NAME == "SUNSET PARK")
+dim(mydata)
+head(mydata)
+write.csv(mydata,"sunset_park.csv")
+```
+
+```{r}
+print(skim(mydata))
+```
+
+```{r}
+# --- Quick Visuals ---
+inspect_types(mydata) %>% show_plot()   # Variable types
+inspect_na(mydata) %>% show_plot()      # Missingness
+inspect_cor(mydata) %>% show_plot()     # Correlations (numeric only)
+```
+
+Exploratory Data Analysis of Sunset Park Dataset
+
+```{r}
+# Analysis will focus only on residential properties
+newdata <- mydata %>% filter(TYPE=="RESIDENTIAL")
+```
+
+```{r}
+# Count of NAs per column
+library(dplyr)
+nas_per_column_dplyr <- newdata %>% summarise(across(everything(), ~ sum(is.na(.))))
+nas_per_column_dplyr
+```
+
+```{r}
+# Summary statistics
+summary(newdata$SALE_PRICE)
+summary(newdata$GROSS_SQUARE_FEET)
+```
+
+```{r}
+nonzero_sales <- newdata %>% filter(SALE_PRICE > 0)
+print(skim(nonzero_sales))
+```
+
+```{r}
+# Observe a heavily right-skewed sale prices in Sunset Park
+h <- hist(nonzero_sales$SALE_PRICE, col = rgb(0,0,1,0.5), breaks = 40,
+main = "Sale Prices Distribution In Sunset Park",
+     xlab = "Sale Price")
+```
+
+```{r}
+# Create a frequency table
+counts <- table(nonzero_sales$BUILDING_CLASS_FINAL_ROLL)
+# Sort the table in descending order
+sorted_counts <- sort(counts, decreasing = TRUE)
+barplot(rev(sorted_counts[1:5]), horiz = TRUE, main = "Number of Sales by Building Type")
+```
+
+```{r}
+# Analyse property sales by quarter
+nonzero_sales <- nonzero_sales %>% mutate(quarter = quarter(SALE_DATE))
+
+nonzero_sales <- nonzero_sales %>% mutate(quarter = factor(as.character(quarter),
+                         levels = c(1, 2, 3, 4),
+                         labels = c("Winter", "Spring", "Summer", "Fall")))
+
+barplot(table(nonzero_sales$quarter), main = "Sales Volume by Quarter", ylab = "Count")
+```
+
+```{r}
+# Time series plots
+nonzero_sales <- nonzero_sales %>% mutate(year = year(SALE_DATE))
+yearly_counts <- nonzero_sales %>%
+  group_by(year) %>%
+  summarise(Count = n_distinct(SALE_ID)) %>%
+  arrange(year)
+
+
+yearly_revenue <- nonzero_sales %>%
+  group_by(year) %>%
+  summarise(Sum = sum(SALE_PRICE)) %>%
+  arrange(year)
+
+yearly_saleprice <- nonzero_sales %>%
+  group_by(year) %>%
+  summarise(Mean = mean(SALE_PRICE)) %>%
+  arrange(year)
+
+plot(yearly_counts$year, yearly_counts$Count, type='b',xaxt = "n", pch=19,
+     xlab = "Year", ylab = "Total Sales Vol", main = "Trend of total sales volume over time")
+axis(side = 1, at = seq(min(yearly_counts$year), max(yearly_counts$year), by = 1))
+
+plot(yearly_revenue$year, yearly_revenue$Sum, type = "b", xaxt = "n", pch=19,
+xlab = "Year", ylab = "Total Sales Revenue", main = "Trend of total sales revenue over time")
+axis(side = 1, at = seq(min(yearly_counts$year), max(yearly_counts$year), by = 1))
+
+plot(yearly_saleprice$year, yearly_saleprice$Mean, type='o',xaxt = "n", pch=19,
+     xlab = "Year", ylab = "Mean sale price", main = "Trend of mean sales price over time")
+axis(side = 1, at = seq(min(yearly_saleprice$year), max(yearly_saleprice$Mean), by = 1))
+```
+
+K Means Clustering Analysis
+
+```{r}
+library(tidyverse)
+require(devtools)
+install.packages("factoextra")
+library(factoextra)
+```
+
+```{r}
+data <- nonzero_sales %>%
+    filter(SALE_PRICE > 10000) %>%
+    filter(GROSS_SQUARE_FEET > 100)
+```
+
+```{r}
+# Extract sale year
+data$SALE_YEAR <- as.numeric(format(data$SALE_DATE, "%Y"))
+
+# Calculate age
+# Raw years ie YEAR_BULIT introduces large numerical differences, which K-means will treat as distance, even if the age difference isn’t linearly meaningful
+# Hence I chose to engineer the AGE feature as this gives a continuous measure that relates more closely to depreciation, maintenance needs, and buyer perception.
+data$AGE <- data$SALE_YEAR - data$YEAR_BUILT
+
+table(data$AGE)
+```
+
+```{r}
+data <- data[!(data$AGE %in% c(-1, -2,-3,-4,-5,-6,2018)), ] # some year_built was 0 leading to negative property age, we will exclude those
+```
+
+```{r}
+# Feature engineering
+df <- data %>%
+  mutate(
+    sale_price = as.numeric(SALE_PRICE),
+    sqft = as.numeric(GROSS_SQUARE_FEET),
+    yr_built = as.numeric(YEAR_BUILT),
+    res_units = as.numeric(RESIDENTIAL_UNITS),
+    com_units = as.numeric(COMMERCIAL_UNITS),
+    total_units = res_units + com_units,
+    property_age = as.numeric(AGE),
+    log_price = log1p(sale_price),
+    log_sqft = log1p(sqft),
+    price_per_sqft = sale_price / pmax(sqft, 1),     # avoid divide by zero
+    log_ppsf = log1p(price_per_sqft)
+  )
+```
+
+```{r}
+# Pick a small subset of useful features
+# Log transforming the sale price and gross square feet features because the dataset is right-skewed so log transformation make distributions more symmetric.
+# The clusters will also be less driven by size/price outliers and more reflective of natural groupings across the bulk of the market.
+feat_names <- c("log_price", "log_sqft", "log_ppsf", "property_age")
+
+X_filled <- df %>%
+  select(any_of(feat_names)) %>%
+  tidyr::drop_na()  # strict: drop any rows with missing in any selected feature
+```
+
+```{r}
+# Gentle winsorize (clip) at 1% and 99% to handle outliers and help reduce skewness in highly skewed data
+wins_p <- 0.01
+X_clip <- X_filled %>%
+  mutate(across(everything(), ~ {
+    lo <- quantile(.x, probs = wins_p, na.rm = TRUE)
+    hi <- quantile(.x, probs = 1 - wins_p, na.rm = TRUE)
+    pmin(pmax(.x, lo), hi)
+  }))
+```
+
+```{r}
+X_scaled <- scale(X_clip) #scale the data
+```
+
+```{r}
+# Scree plot to identify optimal K
+fviz_nbclust(as.data.frame(X_scaled), kmeans, method = "wss")
+```
+
+```{r}
+# Run Kmeans algorithm
+k <- 5  # looking at the WSS plot, the eblow seems to be at k=5
+set.seed(123) # set seed to ensure reproducibility
+km <- kmeans(X_scaled, centers = k, nstart = 25)
+```
+
+```{r}
+fviz_cluster(km, data = as.data.frame(X_scaled))
+print(km$size)
+print(round(km$centers, 2))
+```
+
+```{r}
+clusters <- km$centers
+clusters
+```
+
+```{r}
+clusters <- km$cluster
+table(clusters)
+clusters_df <- data.frame(table(clusters))
+```
+
+```{r}
+# Add cluster assignments back to the original data
+data_with_clusters <- as.data.frame(cbind(X_clip, cluster = km$cluster))
+```
+
+```{r}
+## Find averages per cluster on original scale
+df <- aggregate(. ~ cluster, data = data_with_clusters, FUN = mean)
+df
+```
+
+```{r}
+#change back to raw values for easier interpretation
+df2 <- df %>% mutate(sale_price = exp(log_price), sqft = exp(log_sqft), ppsf = exp(log_ppsf)) %>% select(cluster, property_age, sale_price, sqft, ppsf)
+df2
+```
+
+```{r}
+final <- cbind(df2, clusters_df)
+final <- subset(final, select = -clusters)
+final
+```
+
+Cluster 1 (Freq: 419)
+
+Older mid-sized residential properties (~ 88 years old, ~7,600 sqft) with moderate sale prices and lower price per sqft  These look like aging multi-family buildings where value comes from size rather than modernity.
+
+Cluster 2 (Freq: 152)
+
+Newer, smaller properties (~12 years old, ~2,035 sqft) selling at mid-range prices (around \$865K) but with high PPSF (around $447). This suggests newer condos or well-maintained small homes, where buyers pay a premium for newer construction.
+
+Cluster 3 (Freq: 209)
+Very old properties (~90 years) with moderate size (~2,940 sqft) and low prices (~\$761K), resulting in an extremely low PPSF ($28). These likely represent distressed, underutilized, or heavily depreciated buildings.
+
+Cluster 4 (Freq: 2,267 — dominant cluster)
+The typical Sunset Park residential property: old (~94 years), modest size (~2,600 sqft), lower sale price (\$574K) and moderate PPSF (~\$222). This cluster captures the core housing stock—older, working-class residential buildings that define the neighborhood.
+
+Cluster 5 (Freq: 1,513)
+Very old properties (~103 years) that are small but expensive (\$1.05M) with the highest PPSF (~$517). These are likely high-value townhouses or well-located homes, where location and scarcity drive prices, not size.
+
+Big Picture: Sunset Park’s residential market is dominated by older, modestly priced buildings (Cluster 4), with smaller but meaningful segments of premium small properties (Cluster 5) and newer high-PPSF homes (Cluster 2), alongside a niche of low-value distressed stock (Cluster 3).
+
