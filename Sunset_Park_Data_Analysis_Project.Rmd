@@ -8,32 +8,12 @@ library(inspectdf)
 library(tidyverse)
 ```
 
-Prepare Dataset and Quick Overview
+Read Dataset and Quick Overview
 
 ```{r}
-# Download to a temporary file
-url <- "https://www.dsm.business/MET/NYC_REAL_ESTATE_DATA.RData"
-dest <- tempfile(fileext = ".RData")
-download.file(url, dest)
-
-# Load the data
-load(dest)
-
-BOROUGH <- BOROUGH
-BUILDING_CLASS <- BUILDING_CLASS
-NEIGHBORHOOD <- NEIGHBORHOOD
-NYC_TRANSACTION_DATA <- NYC_TRANSACTION_DATA
-all_nyc <- NYC_TRANSACTION_DATA %>% left_join(BUILDING_CLASS, by =c("BUILDING_CLASS_FINAL_ROLL" =
-"X.BUILDING_CODE_ID")) %>% left_join(NEIGHBORHOOD, by=c("NEIGHBORHOOD_ID" = "NEIGHBORHOOD_ID"))
-dim(all_nyc)
-head(all_nyc)
-```
-
-```{r}
-mydata <- filter(all_nyc, NEIGHBORHOOD_NAME == "SUNSET PARK")
+mydata <- read.csv("sunset_park.csv")
 dim(mydata)
 head(mydata)
-write.csv(mydata,"sunset_park.csv")
 ```
 
 ```{r}
