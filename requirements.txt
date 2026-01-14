@@ -1,0 +1,19 @@
+# ================================
+# Core Data Manipulation & Analysis
+# ================================
+
+tidyverse>=2.0.0    # Core data science ecosystem 
+dplyr>=1.1.4        # Data wrangling, filtering, aggregation 
+
+# ================================
+# Exploratory Data Analysis (EDA)
+# ================================
+
+skimr>=2.2.2         # Compact summary statistics and quick dataset overviews
+inspectdf>=0.0.12.1     # Data quality checks: missing values, categorical levels, distributions
+
+# ================================
+# Clustering & Multivariate Analysis
+# ================================
+
+factoextra>=1.0.3    # K-means clustering visualization, clustering diagnostics
