@@ -17,3 +17,19 @@ Running K Means clustering algorithm on sales price, gross sqft, price per sqft 
 ### Prerequisites
 - R 4.5.2 or higher
 - RStudio
+
+### Installation
+1. Clone the repository: ```git clone https://github.com/afreen99/Sunset-Park-NYC-Real-Estate-Data-Analysis-Project.git```
+
+2. Install required R packages: The list of required R packages is provided in ```requirements.txt```
+   - Open RStudio and run the following in the R console:
+   ```
+   packages <- c( "tidyverse", "dplyr", "skimr", "inspectdf", "factoextra")
+
+   install.packages(setdiff(packages, rownames(installed.packages())))
+   ```
+
+3. Open and run the analysis
+     1. Open the project folder in RStudio
+     2. Open the main R Markdown file ```Sunset_Park_Data_Analysis_Project.Rmd```
+     3. Run all code chunks interactively
