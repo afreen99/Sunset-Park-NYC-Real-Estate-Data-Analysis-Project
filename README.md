@@ -1,7 +1,7 @@
 # Sunset-Park-NYC-Real-Estate-Data-Analysis-Project
 A data science and analytics project on Sunset Park (NYC) real estate data from 2003 to 2021 integrating R programming skills, exploratory data analysis, time series analysis, and clustering.
 ## 📋 Project Overview
-This project explores the residential Sunset Park real estate data to:
+This project explores the Sunset Park residential real estate data to:
 - Visualize insights about property sale prices and sales volumes
 - Interpret clustering analysis on property prices
 
