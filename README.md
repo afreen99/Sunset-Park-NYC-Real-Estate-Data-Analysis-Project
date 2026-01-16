@@ -7,7 +7,7 @@ This project explores the Sunset Park residential real estate data to:
 
 ## 📊 Dataset
 The Sunset Park real estate data (```sunset_park.csv```) contains:
-- 7008 rows
+- 13050 rows
 - 16 columns with attributes like building class, description, zip_code, number of residential and commercial units, year built, gross sqft and sale price
 
 ## 🤖 K Means Clustering Insights
